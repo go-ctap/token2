@@ -1,0 +1,217 @@
+package pcsc
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"testing"
+
+	nativepcsc "github.com/go-ctap/pcsc"
+	"github.com/go-ctap/token2/apdu"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var (
+	selectOTPAPDU = []byte{
+		0x00, 0xa4, 0x04, 0x00, 0x08,
+		0xf0, 0x00, 0x00, 0x01, 0x4f, 0x74, 0x70, 0x01,
+	}
+	configAPDU = []byte{
+		0x80, 0xc5, 0x02, 0x00, 0x0a,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	fidoInfoAPDU = []byte{0x80, 0xc5, 0x03, 0x00, 0x01, 0x04}
+	serialAPDU   = []byte{
+		0x80, 0x33, 0x00, 0x00, 0x12,
+		0xd1, 0x10,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+)
+
+type cardStep struct {
+	command  []byte
+	response []byte
+	err      error
+}
+
+type scriptedCard struct {
+	steps     []cardStep
+	sent      [][]byte
+	status    *nativepcsc.CardStatus
+	statusErr error
+	closeErr  error
+	closed    bool
+}
+
+func (c *scriptedCard) Transmit(command []byte) ([]byte, error) {
+	c.sent = append(c.sent, append([]byte(nil), command...))
+
+	if len(c.steps) == 0 {
+		return nil, fmt.Errorf("unexpected APDU: %x", command)
+	}
+
+	step := c.steps[0]
+	c.steps = c.steps[1:]
+	if !bytes.Equal(command, step.command) {
+		return nil, fmt.Errorf("unexpected APDU: got %x, want %x", command, step.command)
+	}
+
+	return append([]byte(nil), step.response...), step.err
+}
+
+func (c *scriptedCard) Status() (*nativepcsc.CardStatus, error) {
+	return c.status, c.statusErr
+}
+
+func (c *scriptedCard) Close() error {
+	c.closed = true
+	return c.closeErr
+}
+
+func successfulResponse(data []byte) []byte {
+	return append(append([]byte(nil), data...), 0x90, 0x00)
+}
+
+func statusResponse(status uint16) []byte {
+	return []byte{byte(status >> 8), byte(status)}
+}
+
+func TestConfig(t *testing.T) {
+	data := []byte{0x02, 0x2a, 0x86, 0x01, 0x10, 0x00, 0x02, 0x01, 0x02, 0x37}
+	card := &scriptedCard{steps: []cardStep{
+		{command: selectOTPAPDU, response: successfulResponse(nil)},
+		{command: configAPDU, response: successfulResponse(data)},
+	}}
+	device := &Device{card: card}
+
+	config, err := device.Config()
+	require.NoError(t, err)
+
+	assert.Equal(t, data, config.Raw)
+	assert.Equal(t, byte(0x02), config.TransferType)
+	assert.Equal(t, byte(0x2a), config.DeviceConfiguration)
+	assert.Empty(t, card.steps)
+}
+
+func TestConfigRejectsFailedSelect(t *testing.T) {
+	card := &scriptedCard{steps: []cardStep{
+		{command: selectOTPAPDU, response: statusResponse(0x6a82)},
+	}}
+	device := &Device{card: card}
+
+	_, err := device.Config()
+
+	var statusErr *apdu.StatusError
+	require.ErrorAs(t, err, &statusErr)
+	assert.Contains(t, err.Error(), "select Token2 OTP application")
+	assert.Empty(t, card.steps)
+	assert.Len(t, card.sent, 1)
+}
+
+func TestStatusErrors(t *testing.T) {
+	configData := []byte{0x02, 0x2a, 0x86, 0x01, 0x10, 0x00, 0x02, 0x01, 0x02, 0x37}
+
+	tests := []struct {
+		name      string
+		operation string
+		steps     []cardStep
+		call      func(*Device) error
+	}{
+		{
+			name:      "configuration",
+			operation: "read Token2 configuration",
+			steps: []cardStep{
+				{command: selectOTPAPDU, response: successfulResponse(nil)},
+				{command: configAPDU, response: statusResponse(0x6985)},
+			},
+			call: func(d *Device) error {
+				_, err := d.Config()
+				return err
+			},
+		},
+		{
+			name:      "FIDO information",
+			operation: "read FIDO information",
+			steps: []cardStep{
+				{command: fidoInfoAPDU, response: statusResponse(0x6d00)},
+			},
+			call: func(d *Device) error {
+				_, err := d.FIDOInfo()
+				return err
+			},
+		},
+		{
+			name:      "serial number",
+			operation: "read serial number",
+			steps: []cardStep{
+				{command: selectOTPAPDU, response: successfulResponse(nil)},
+				{command: configAPDU, response: successfulResponse(configData)},
+				{command: fidoInfoAPDU, response: successfulResponse([]byte{0x01})},
+				{command: serialAPDU, response: statusResponse(0x6a80)},
+			},
+			call: func(d *Device) error {
+				_, err := d.SerialNumber()
+				return err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			card := &scriptedCard{steps: tt.steps}
+			err := tt.call(&Device{card: card})
+
+			var statusErr *apdu.StatusError
+			require.ErrorAs(t, err, &statusErr)
+			assert.Contains(t, err.Error(), tt.operation)
+			assert.Empty(t, card.steps)
+		})
+	}
+}
+
+func TestSerialNumberSequence(t *testing.T) {
+	configData := []byte{0x02, 0x2a, 0x86, 0x01, 0x10, 0x00, 0x02, 0x01, 0x02, 0x37}
+	serialData := []byte{0xd1, 0x0e, '7', '2', '1', '0', '2', '9', '3', '5', '7', '8', '0', '5', '2', '8'}
+	card := &scriptedCard{steps: []cardStep{
+		{command: selectOTPAPDU, response: successfulResponse(nil)},
+		{command: configAPDU, response: successfulResponse(configData)},
+		{command: fidoInfoAPDU, response: successfulResponse([]byte{0x01})},
+		{command: serialAPDU, response: successfulResponse(serialData)},
+	}}
+	device := &Device{card: card}
+
+	serial, err := device.SerialNumber()
+	require.NoError(t, err)
+
+	assert.Equal(t, "72102935780528", serial)
+	assert.Empty(t, card.steps)
+}
+
+func TestATRInfo(t *testing.T) {
+	atr := []byte{
+		0x3b, 0xff, 0x18, 0x00, 0x00, 0x10, 0x80,
+		0x86, 0x8e, 0x00, 0x16, 0x60, 0x00, 0x60,
+		'3', '5', '7', '8', '0', '5', '2', '8',
+	}
+	card := &scriptedCard{status: &nativepcsc.CardStatus{ATR: atr}}
+	device := &Device{card: card}
+
+	info, err := device.ATRInfo()
+	require.NoError(t, err)
+
+	assert.Equal(t, uint16(0x0016), info.ProductID)
+	assert.Equal(t, "35780528", info.SerialSuffix)
+}
+
+func TestDeviceClose(t *testing.T) {
+	closeErr := errors.New("close failed")
+	card := &scriptedCard{closeErr: closeErr}
+	device := &Device{card: card}
+
+	err := device.Close()
+
+	assert.ErrorIs(t, err, closeErr)
+	assert.True(t, card.closed)
+}

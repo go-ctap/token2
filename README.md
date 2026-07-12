@@ -36,7 +36,12 @@ portable PC/SC identity source.
 ## PC/SC
 
 ```go
-import token2pcsc "github.com/go-ctap/token2/transport/pcsc"
+import (
+	"log"
+
+	"github.com/go-ctap/token2"
+	token2pcsc "github.com/go-ctap/token2/transport/pcsc"
+)
 
 device, err := token2pcsc.Open("TOKEN2 FIDO2 Security Key(0016)")
 if err != nil {
@@ -44,17 +49,66 @@ if err != nil {
 }
 defer device.Close()
 
-info, err := device.ATRInfo()
+atr, err := device.ATRInfo()
 if err != nil {
 	log.Fatal(err)
 }
-log.Printf("pid=%04x serial suffix=%s", info.ProductID, info.SerialSuffix)
+log.Printf("ATR=%x", atr.Raw)
+log.Printf("pid=%04x serial suffix=%s", atr.ProductID, atr.SerialSuffix)
+
+serialNumber, err := device.SerialNumber()
+if err != nil {
+	log.Fatal(err)
+}
+log.Printf("serial number=%s", serialNumber)
+
+if identity, ok := token2.Identify(serialNumber); ok {
+	log.Printf(
+		"model: revision=%s form-factor=%q branding=%q",
+		identity.Model.Revision,
+		identity.Model.FormFactor,
+		identity.Model.Branding,
+	)
+}
+
+config, err := device.Config()
+if err != nil {
+	log.Fatal(err)
+}
+if len(config.Raw) == 1 {
+	log.Printf("legacy transfer type=%02x", config.TransferType)
+} else {
+	log.Printf(
+		"appearance=%x FIDO=%d.%d.%d hotp=%t totp=%t nfc=%t ccid=%t fingerprint=%t fido2.1=%t",
+		config.Appearance,
+		config.FIDOVersion.Major,
+		config.FIDOVersion.Minor,
+		config.FIDOVersion.Patch,
+		config.HOTPSupported(),
+		config.TOTPSupported(),
+		config.NFCSupported(),
+		config.CCIDSupported(),
+		config.FingerprintSensorPresent(),
+		config.FIDO21Supported(),
+	)
+}
+
+fidoInfo, err := device.FIDOInfo()
+if err != nil {
+	log.Fatal(err)
+}
+log.Printf("raw FIDO information=%x", fidoInfo)
 ```
 
 ## HID
 
 ```go
-import token2hid "github.com/go-ctap/token2/transport/hid"
+import (
+	"log"
+
+	"github.com/go-ctap/token2"
+	token2hid "github.com/go-ctap/token2/transport/hid"
+)
 
 device, err := token2hid.Open(path)
 if err != nil {
@@ -66,6 +120,16 @@ serialNumber, err := device.SerialNumber()
 if err != nil {
 	log.Fatal(err)
 }
+log.Printf("serial number=%s", serialNumber)
+
+if identity, ok := token2.Identify(serialNumber); ok {
+	log.Printf(
+		"model: revision=%s form-factor=%q branding=%q",
+		identity.Model.Revision,
+		identity.Model.FormFactor,
+		identity.Model.Branding,
+	)
+}
 ```
 
 ## CTAPHID
@@ -74,7 +138,11 @@ The CTAPHID transport sends logical vendor command `0x41`; CTAPHID framing adds
 the init-packet bit, so the on-wire command byte is `0xc1`.
 
 ```go
-import token2ctaphid "github.com/go-ctap/token2/transport/ctaphid"
+import (
+	"log"
+
+	token2ctaphid "github.com/go-ctap/token2/transport/ctaphid"
+)
 
 device, err := token2ctaphid.Open(path)
 if err != nil {
@@ -86,6 +154,8 @@ info, err := device.ATRInfo()
 if err != nil {
 	log.Fatal(err)
 }
+log.Printf("ATR=%x", info.Raw)
+log.Printf("pid=%04x serial suffix=%s", info.ProductID, info.SerialSuffix)
 ```
 
 All concrete device types serialize complete logical operations. Malformed data

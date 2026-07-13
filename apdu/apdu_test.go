@@ -1,6 +1,7 @@
 package apdu
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -23,7 +24,7 @@ type scriptedCard struct {
 	responses [][]byte
 }
 
-func (c *scriptedCard) Transmit(command []byte) ([]byte, error) {
+func (c *scriptedCard) Transmit(_ context.Context, command []byte) ([]byte, error) {
 	c.requests = append(c.requests, append([]byte(nil), command...))
 	response := c.responses[0]
 	c.responses = c.responses[1:]
@@ -32,7 +33,7 @@ func (c *scriptedCard) Transmit(command []byte) ([]byte, error) {
 
 func TestExchangeGetResponse(t *testing.T) {
 	card := &scriptedCard{responses: [][]byte{{0xaa, 0x61, 0x02}, {0xbb, 0xcc, 0x90, 0x00}}}
-	response, err := Exchange(card, Command{CLA: 0x80, INS: 0x33, Data: []byte{1, 2}})
+	response, err := Exchange(t.Context(), card, Command{CLA: 0x80, INS: 0x33, Data: []byte{1, 2}})
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0xaa, 0xbb, 0xcc}, response.Data)
 	assert.Equal(t, uint16(0x9000), response.SW)

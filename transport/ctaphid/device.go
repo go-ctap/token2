@@ -2,13 +2,11 @@
 package ctaphid
 
 import (
-	"crypto/rand"
+	"context"
 	"errors"
 	"fmt"
-	"io"
-	"sync"
 
-	lowlevel "github.com/go-ctap/ctap/transport/ctaphid"
+	"github.com/go-ctap/ctap/transport/ctaphid"
 	hidapi "github.com/go-ctap/hid"
 	"github.com/go-ctap/token2"
 )
@@ -16,51 +14,37 @@ import (
 // CommandGetATR is the Token2 vendor command which returns the device ATR.
 // Its logical CTAPHID value is 0x41; CTAPHID framing adds the init-packet bit,
 // resulting in the on-wire command byte 0xc1.
-const CommandGetATR lowlevel.Command = lowlevel.CTAPHID_VENDOR_FIRST + 1
+const CommandGetATR = ctaphid.CTAPHID_VENDOR_FIRST + 1
 
 // Device is a Token2 device connected through the CTAPHID protocol.
 type Device struct {
-	mu     sync.Mutex
-	device io.ReadWriteCloser
-	cid    lowlevel.ChannelID
+	transport *ctaphid.Transport
 }
 
 var _ token2.ATRDevice = (*Device)(nil)
 
 // Open opens the FIDO HID collection at path and allocates a CTAPHID channel.
-func Open(path string) (*Device, error) {
+func Open(ctx context.Context, path string) (*Device, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	device, err := hidapi.OpenPath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return initialize(device, rand.Reader)
-}
-
-func initialize(device io.ReadWriteCloser, random io.Reader) (*Device, error) {
-	nonce := make([]byte, 8)
-	if _, err := io.ReadFull(random, nonce); err != nil {
-		return nil, closeOnError(device, fmt.Errorf("generate CTAPHID nonce: %w", err))
-	}
-
-	response, err := lowlevel.Init(device, lowlevel.BROADCAST_CID, nonce)
+	transport, err := ctaphid.Open(ctx, device)
 	if err != nil {
-		return nil, closeOnError(device, fmt.Errorf("initialize CTAPHID channel: %w", err))
+		return nil, errors.Join(fmt.Errorf("initialize CTAPHID channel: %w", err), device.Close())
 	}
 
-	return &Device{device: device, cid: response.CID}, nil
-}
-
-func closeOnError(device io.Closer, err error) error {
-	return errors.Join(err, device.Close())
+	return &Device{transport: transport}, nil
 }
 
 // ATRInfo returns the ATR supplied by Token2 CTAPHID vendor command 0x41.
-func (d *Device) ATRInfo() (token2.ATRInfo, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	response, err := lowlevel.Vendor(d.device, d.cid, CommandGetATR, nil)
+func (d *Device) ATRInfo(ctx context.Context) (token2.ATRInfo, error) {
+	response, err := d.transport.Vendor(ctx, CommandGetATR, nil)
 	if err != nil {
 		return token2.ATRInfo{}, fmt.Errorf("read Token2 ATR over CTAPHID: %w", err)
 	}
@@ -70,8 +54,5 @@ func (d *Device) ATRInfo() (token2.ATRInfo, error) {
 
 // Close closes the underlying HID device.
 func (d *Device) Close() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	return d.device.Close()
+	return d.transport.Close()
 }

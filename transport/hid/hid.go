@@ -2,6 +2,7 @@
 package hid
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -53,11 +54,12 @@ func (d *Device) Close() error {
 }
 
 // SerialNumber returns the device serial number.
-func (d *Device) SerialNumber() (string, error) {
+func (d *Device) SerialNumber(ctx context.Context) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	response, err := apdu.Exchange(
+		ctx,
 		transceiver{device: d.device},
 		protocol.SerialNumberCommand(true),
 	)
@@ -77,7 +79,7 @@ type transceiver struct {
 
 var _ apdu.Transceiver = transceiver{}
 
-func (t transceiver) Transmit(command []byte) ([]byte, error) {
+func (t transceiver) Transmit(_ context.Context, command []byte) ([]byte, error) {
 	for offset, sequence := 0, byte(0); offset < len(command); sequence++ {
 		length := min(chunkSize, len(command)-offset)
 		report := make([]byte, reportSize)

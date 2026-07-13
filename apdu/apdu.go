@@ -2,7 +2,10 @@
 // used by Token2 devices.
 package apdu
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 const (
 	// StatusSuccess is the ISO/IEC 7816 success status word.
@@ -92,13 +95,13 @@ func ParseResponse(response []byte) (Response, error) {
 // Transceiver sends one encoded command APDU and returns one encoded response
 // APDU.
 type Transceiver interface {
-	Transmit([]byte) ([]byte, error)
+	Transmit(context.Context, []byte) ([]byte, error)
 }
 
 // Exchange sends command and follows ISO GET RESPONSE status words until the
 // device returns a final response.
-func Exchange(card Transceiver, command Command) (Response, error) {
-	responseBytes, err := card.Transmit(command.Bytes())
+func Exchange(ctx context.Context, card Transceiver, command Command) (Response, error) {
+	responseBytes, err := card.Transmit(ctx, command.Bytes())
 	if err != nil {
 		return Response{}, err
 	}
@@ -113,7 +116,7 @@ func Exchange(card Transceiver, command Command) (Response, error) {
 	for response.SW>>8 == statusMoreData || response.SW>>8 == statusMoreDataAlt {
 		le := byte(response.SW)
 
-		responseBytes, err = card.Transmit([]byte{0, instructionGetResponse, 0, 0, le})
+		responseBytes, err = card.Transmit(ctx, []byte{0, instructionGetResponse, 0, 0, le})
 		if err != nil {
 			return Response{}, err
 		}

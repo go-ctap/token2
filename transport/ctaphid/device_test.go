@@ -2,8 +2,7 @@ package ctaphid
 
 import (
 	"bytes"
-	"errors"
-	"io"
+	"context"
 	"testing"
 
 	lowlevel "github.com/go-ctap/ctap/transport/ctaphid"
@@ -18,16 +17,20 @@ const (
 )
 
 type scriptedDevice struct {
-	reads  *bytes.Reader
-	writes bytes.Buffer
-	closed bool
+	reads         *bytes.Reader
+	writes        bytes.Buffer
+	readContexts  []context.Context
+	writeContexts []context.Context
+	closed        bool
 }
 
-func (d *scriptedDevice) Read(p []byte) (int, error) {
+func (d *scriptedDevice) Read(ctx context.Context, p []byte) (int, error) {
+	d.readContexts = append(d.readContexts, ctx)
 	return d.reads.Read(p)
 }
 
-func (d *scriptedDevice) Write(p []byte) (int, error) {
+func (d *scriptedDevice) Write(ctx context.Context, p []byte) (int, error) {
+	d.writeContexts = append(d.writeContexts, ctx)
 	return d.writes.Write(p)
 }
 
@@ -37,7 +40,8 @@ func (d *scriptedDevice) Close() error {
 }
 
 func TestATRInfo(t *testing.T) {
-	nonce := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	type contextKey struct{}
+	atrCtx := context.WithValue(t.Context(), contextKey{}, "atr")
 	cid := lowlevel.ChannelID{1, 2, 3, 4}
 	atr := []byte{
 		0x3b, 0xff, 0x18, 0x00, 0x00, 0x10, 0x80,
@@ -45,74 +49,41 @@ func TestATRInfo(t *testing.T) {
 		'3', '5', '7', '8', '0', '5', '2', '8',
 	}
 
-	initData := append([]byte(nil), nonce...)
-	initData = append(initData, cid[:]...)
-	initData = append(initData, 2, 1, 2, 3, 0)
-	device := newScriptedDevice(t,
-		responseBytes(t, lowlevel.BROADCAST_CID, lowlevel.CTAPHID_INIT, initData),
-		responseBytes(t, cid, CommandGetATR, atr),
-	)
+	device := newScriptedDevice(t, responseBytes(t, cid, CommandGetATR, atr))
+	transport := &Device{transport: lowlevel.NewTransport(device, cid)}
 
-	transport, err := initialize(device, bytes.NewReader(nonce))
-	require.NoError(t, err)
-
-	info, err := transport.ATRInfo()
+	info, err := transport.ATRInfo(atrCtx)
 	require.NoError(t, err)
 	assert.Equal(t, uint16(0x0016), info.ProductID)
 	assert.Equal(t, "35780528", info.SerialSuffix)
 	assert.Equal(t, atr, info.Raw)
 
 	written := device.writes.Bytes()
-	require.Len(t, written, 2*reportSize)
-	assert.Equal(t, byte(lowlevel.CTAPHID_INIT)|initPacketBit, written[5])
-	assert.Equal(t, nonce, written[8:16])
-	assert.Equal(t, byte(CommandGetATR)|initPacketBit, written[reportSize+5])
-	assert.Equal(t, cid[:], written[reportSize+1:reportSize+5])
+	require.Len(t, written, reportSize)
+	assert.Equal(t, byte(CommandGetATR)|initPacketBit, written[5])
+	assert.Equal(t, cid[:], written[1:5])
+	require.Len(t, device.readContexts, 1)
+	require.Len(t, device.writeContexts, 1)
+	assert.Equal(t, "atr", device.readContexts[0].Value(contextKey{}))
+	assert.Equal(t, "atr", device.writeContexts[0].Value(contextKey{}))
 }
 
 func TestATRInfoRejectsMalformedResponse(t *testing.T) {
 	cid := lowlevel.ChannelID{1, 2, 3, 4}
 	device := newScriptedDevice(t, responseBytes(t, cid, CommandGetATR, []byte{1, 2, 3}))
-	transport := &Device{device: device, cid: cid}
+	transport := &Device{transport: lowlevel.NewTransport(device, cid)}
 
-	_, err := transport.ATRInfo()
+	_, err := transport.ATRInfo(t.Context())
 
 	assert.ErrorIs(t, err, token2.ErrInvalidATR)
 }
 
-func TestInitializeClosesDeviceOnFailure(t *testing.T) {
-	device := &scriptedDevice{reads: bytes.NewReader(nil)}
-
-	_, err := initialize(device, bytes.NewReader(make([]byte, 8)))
-
-	require.Error(t, err)
-	assert.True(t, device.closed)
-}
-
-func TestInitializeReportsRandomFailure(t *testing.T) {
-	device := &scriptedDevice{reads: bytes.NewReader(nil)}
-	randomErr := errors.New("random failed")
-
-	_, err := initialize(device, errorReader{err: randomErr})
-
-	assert.ErrorIs(t, err, randomErr)
-	assert.True(t, device.closed)
-}
-
 func TestClose(t *testing.T) {
-	device := &scriptedDevice{reads: bytes.NewReader(nil)}
-	transport := &Device{device: device}
+	device := newScriptedDevice(t)
+	transport := &Device{transport: lowlevel.NewTransport(device, lowlevel.ChannelID{})}
 
 	require.NoError(t, transport.Close())
 	assert.True(t, device.closed)
-}
-
-type errorReader struct {
-	err error
-}
-
-func (r errorReader) Read([]byte) (int, error) {
-	return 0, r.err
 }
 
 func newScriptedDevice(t testing.TB, responses ...[]byte) *scriptedDevice {
@@ -141,4 +112,4 @@ func responseBytes(t testing.TB, cid lowlevel.ChannelID, command lowlevel.Comman
 	return response
 }
 
-var _ io.ReadWriteCloser = (*scriptedDevice)(nil)
+var _ lowlevel.Device = (*scriptedDevice)(nil)

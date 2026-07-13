@@ -3,9 +3,9 @@ module github.com/go-ctap/token2
 go 1.26.3
 
 require (
-	github.com/go-ctap/ctap v0.15.0
-	github.com/go-ctap/hid v0.8.1
-	github.com/go-ctap/pcsc v0.2.0
+	github.com/go-ctap/ctap v0.19.0
+	github.com/go-ctap/hid v0.9.1
+	github.com/go-ctap/pcsc v0.3.0
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -14,6 +14,7 @@ require (
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/ldclabs/cose v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/samber/lo v1.53.0 // indirect

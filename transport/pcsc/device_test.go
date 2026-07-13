@@ -2,6 +2,7 @@ package pcsc
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -43,9 +44,11 @@ type scriptedCard struct {
 	statusErr error
 	closeErr  error
 	closed    bool
+	contexts  []context.Context
 }
 
-func (c *scriptedCard) Transmit(command []byte) ([]byte, error) {
+func (c *scriptedCard) Transmit(ctx context.Context, command []byte) ([]byte, error) {
+	c.contexts = append(c.contexts, ctx)
 	c.sent = append(c.sent, append([]byte(nil), command...))
 
 	if len(c.steps) == 0 {
@@ -79,6 +82,8 @@ func statusResponse(status uint16) []byte {
 }
 
 func TestConfig(t *testing.T) {
+	type contextKey struct{}
+	ctx := context.WithValue(t.Context(), contextKey{}, "config")
 	data := []byte{0x02, 0x2a, 0x86, 0x01, 0x10, 0x00, 0x02, 0x01, 0x02, 0x37}
 	card := &scriptedCard{steps: []cardStep{
 		{command: selectOTPAPDU, response: successfulResponse(nil)},
@@ -86,13 +91,17 @@ func TestConfig(t *testing.T) {
 	}}
 	device := &Device{card: card}
 
-	config, err := device.Config()
+	config, err := device.Config(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, data, config.Raw)
 	assert.Equal(t, byte(0x02), config.TransferType)
 	assert.Equal(t, byte(0x2a), config.DeviceConfiguration)
 	assert.Empty(t, card.steps)
+	require.Len(t, card.contexts, 2)
+	for _, got := range card.contexts {
+		assert.Equal(t, "config", got.Value(contextKey{}))
+	}
 }
 
 func TestConfigRejectsFailedSelect(t *testing.T) {
@@ -101,7 +110,7 @@ func TestConfigRejectsFailedSelect(t *testing.T) {
 	}}
 	device := &Device{card: card}
 
-	_, err := device.Config()
+	_, err := device.Config(t.Context())
 
 	var statusErr *apdu.StatusError
 	require.ErrorAs(t, err, &statusErr)
@@ -127,7 +136,7 @@ func TestStatusErrors(t *testing.T) {
 				{command: configAPDU, response: statusResponse(0x6985)},
 			},
 			call: func(d *Device) error {
-				_, err := d.Config()
+				_, err := d.Config(t.Context())
 				return err
 			},
 		},
@@ -138,7 +147,7 @@ func TestStatusErrors(t *testing.T) {
 				{command: fidoInfoAPDU, response: statusResponse(0x6d00)},
 			},
 			call: func(d *Device) error {
-				_, err := d.FIDOInfo()
+				_, err := d.FIDOInfo(t.Context())
 				return err
 			},
 		},
@@ -152,7 +161,7 @@ func TestStatusErrors(t *testing.T) {
 				{command: serialAPDU, response: statusResponse(0x6a80)},
 			},
 			call: func(d *Device) error {
-				_, err := d.SerialNumber()
+				_, err := d.SerialNumber(t.Context())
 				return err
 			},
 		},
@@ -182,7 +191,7 @@ func TestSerialNumberSequence(t *testing.T) {
 	}}
 	device := &Device{card: card}
 
-	serial, err := device.SerialNumber()
+	serial, err := device.SerialNumber(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, "72102935780528", serial)
@@ -198,7 +207,7 @@ func TestATRInfo(t *testing.T) {
 	card := &scriptedCard{status: &nativepcsc.CardStatus{ATR: atr}}
 	device := &Device{card: card}
 
-	info, err := device.ATRInfo()
+	info, err := device.ATRInfo(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, uint16(0x0016), info.ProductID)

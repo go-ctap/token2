@@ -20,7 +20,7 @@ func TestHardware(t *testing.T) {
 		require.NoError(t, device.Close())
 	})
 
-	serialNumber, err := device.SerialNumber()
+	serialNumber, err := device.SerialNumber(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, serialNumber)
 

@@ -2,6 +2,7 @@
 package pcsc
 
 import (
+	"context"
 	"sync"
 
 	nativepcsc "github.com/go-ctap/pcsc"
@@ -40,7 +41,7 @@ func (d *Device) Close() error {
 }
 
 // ATRInfo returns information encoded in the device ATR.
-func (d *Device) ATRInfo() (token2.ATRInfo, error) {
+func (d *Device) ATRInfo(_ context.Context) (token2.ATRInfo, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -53,15 +54,15 @@ func (d *Device) ATRInfo() (token2.ATRInfo, error) {
 }
 
 // Config returns the Token2 device configuration.
-func (d *Device) Config() (token2.Config, error) {
+func (d *Device) Config(ctx context.Context) (token2.Config, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	return d.config()
+	return d.config(ctx)
 }
 
-func (d *Device) config() (token2.Config, error) {
-	response, err := apdu.Exchange(d.card, protocol.SelectOTPCommand())
+func (d *Device) config(ctx context.Context) (token2.Config, error) {
+	response, err := apdu.Exchange(ctx, d.card, protocol.SelectOTPCommand())
 	if err != nil {
 		return token2.Config{}, err
 	}
@@ -69,7 +70,7 @@ func (d *Device) config() (token2.Config, error) {
 		return token2.Config{}, err
 	}
 
-	response, err = apdu.Exchange(d.card, protocol.ConfigCommand())
+	response, err = apdu.Exchange(ctx, d.card, protocol.ConfigCommand())
 	if err != nil {
 		return token2.Config{}, err
 	}
@@ -81,15 +82,15 @@ func (d *Device) config() (token2.Config, error) {
 }
 
 // FIDOInfo returns the raw FIDO information reported by the device.
-func (d *Device) FIDOInfo() ([]byte, error) {
+func (d *Device) FIDOInfo(ctx context.Context) ([]byte, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	return d.fidoInfo()
+	return d.fidoInfo(ctx)
 }
 
-func (d *Device) fidoInfo() ([]byte, error) {
-	response, err := apdu.Exchange(d.card, protocol.FIDOInfoCommand())
+func (d *Device) fidoInfo(ctx context.Context) ([]byte, error) {
+	response, err := apdu.Exchange(ctx, d.card, protocol.FIDOInfoCommand())
 	if err != nil {
 		return nil, err
 	}
@@ -101,18 +102,18 @@ func (d *Device) fidoInfo() ([]byte, error) {
 }
 
 // SerialNumber returns the full device serial number.
-func (d *Device) SerialNumber() (string, error) {
+func (d *Device) SerialNumber(ctx context.Context) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if _, err := d.config(); err != nil {
+	if _, err := d.config(ctx); err != nil {
 		return "", err
 	}
-	if _, err := d.fidoInfo(); err != nil {
+	if _, err := d.fidoInfo(ctx); err != nil {
 		return "", err
 	}
 
-	response, err := apdu.Exchange(d.card, protocol.SerialNumberCommand(false))
+	response, err := apdu.Exchange(ctx, d.card, protocol.SerialNumberCommand(false))
 	if err != nil {
 		return "", err
 	}

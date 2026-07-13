@@ -21,19 +21,19 @@ func TestHardware(t *testing.T) {
 
 	// FIDOInfo is intentionally first: each public operation must work on a
 	// freshly opened connection rather than depend on an earlier call.
-	fidoInfo, err := device.FIDOInfo()
+	fidoInfo, err := device.FIDOInfo(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, fidoInfo)
 
-	config, err := device.Config()
+	config, err := device.Config(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, config.Raw)
 
-	serialNumber, err := device.SerialNumber()
+	serialNumber, err := device.SerialNumber(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, serialNumber)
 
-	atr, err := device.ATRInfo()
+	atr, err := device.ATRInfo(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, atr.Raw)
 }

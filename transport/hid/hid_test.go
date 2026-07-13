@@ -46,7 +46,7 @@ func TestTransmitSingleChunk(t *testing.T) {
 	response := responseReport(0, false, []byte{0xd1, 0x00, 0x90, 0x00})
 	script := &featureScript{responses: []featureResponse{{report: response, n: len(response)}}}
 
-	got, err := (transceiver{device: script}).Transmit([]byte{0x80, 0x33})
+	got, err := (transceiver{device: script}).Transmit(t.Context(), []byte{0x80, 0x33})
 	require.NoError(t, err)
 
 	assert.Equal(t, []byte{0xd1, 0x00, 0x90, 0x00}, got)
@@ -74,7 +74,7 @@ func TestTransmitMultipleChunks(t *testing.T) {
 		{report: secondReport, n: len(secondReport)},
 	}}
 
-	got, err := (transceiver{device: script}).Transmit(command)
+	got, err := (transceiver{device: script}).Transmit(t.Context(), command)
 	require.NoError(t, err)
 
 	assert.Equal(t, append(first, second...), got)
@@ -100,7 +100,7 @@ func TestTransmitWaitsForPendingReport(t *testing.T) {
 		{report: response, n: len(response)},
 	}}
 
-	got, err := (transceiver{device: script}).Transmit([]byte{0x80, 0x33})
+	got, err := (transceiver{device: script}).Transmit(t.Context(), []byte{0x80, 0x33})
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x90, 0x00}, got)
 	assert.Empty(t, script.responses)
@@ -170,7 +170,7 @@ func TestTransmitRejectsMalformedReports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			script := &featureScript{responses: []featureResponse{{report: tt.report, n: tt.n}}}
 
-			_, err := (transceiver{device: script}).Transmit([]byte{0x80, 0x33})
+			_, err := (transceiver{device: script}).Transmit(t.Context(), []byte{0x80, 0x33})
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -180,12 +180,12 @@ func TestTransmitRejectsMalformedReports(t *testing.T) {
 
 func TestTransmitPropagatesFeatureReportErrors(t *testing.T) {
 	sendErr := errors.New("send failed")
-	_, err := (transceiver{device: &featureScript{sendErr: sendErr}}).Transmit([]byte{0x80, 0x33})
+	_, err := (transceiver{device: &featureScript{sendErr: sendErr}}).Transmit(t.Context(), []byte{0x80, 0x33})
 	assert.ErrorIs(t, err, sendErr)
 
 	receiveErr := errors.New("receive failed")
 	script := &featureScript{responses: []featureResponse{{err: receiveErr}}}
-	_, err = (transceiver{device: script}).Transmit([]byte{0x80, 0x33})
+	_, err = (transceiver{device: script}).Transmit(t.Context(), []byte{0x80, 0x33})
 	assert.ErrorIs(t, err, receiveErr)
 }
 
@@ -208,7 +208,7 @@ func TestDeviceSerialNumber(t *testing.T) {
 	script := &featureScript{responses: []featureResponse{{report: response, n: len(response)}}}
 	device := &Device{device: script}
 
-	got, err := device.SerialNumber()
+	got, err := device.SerialNumber(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, serial, got)
@@ -222,7 +222,7 @@ func TestDeviceSerialNumberStatusError(t *testing.T) {
 	script := &featureScript{responses: []featureResponse{{report: response, n: len(response)}}}
 	device := &Device{device: script}
 
-	_, err := device.SerialNumber()
+	_, err := device.SerialNumber(t.Context())
 
 	var statusErr *apdu.StatusError
 	require.ErrorAs(t, err, &statusErr)

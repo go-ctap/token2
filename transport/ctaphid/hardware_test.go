@@ -13,13 +13,13 @@ func TestHardware(t *testing.T) {
 		t.Skip("set TOKEN2_CTAPHID_TEST_PATH to run the CTAPHID hardware test")
 	}
 
-	device, err := Open(path)
+	device, err := Open(t.Context(), path)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, device.Close())
 	})
 
-	atr, err := device.ATRInfo()
+	atr, err := device.ATRInfo(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, atr.Raw)
 	t.Logf("ATR: %x", atr.Raw)

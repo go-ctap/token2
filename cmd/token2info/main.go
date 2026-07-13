@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	readerFlag := flag.String("reader", "", "PC/SC reader name")
 	flag.Parse()
 
@@ -37,21 +39,21 @@ func main() {
 		_ = device.Close()
 	}()
 
-	atr, err := device.ATRInfo()
+	atr, err := device.ATRInfo(ctx)
 	check(err)
 
 	fmt.Printf("ATR: %x\n", atr.Raw)
 	fmt.Printf("serial suffix: %s\n", atr.SerialSuffix)
 	fmt.Printf("product ID: %04x\n", atr.ProductID)
 
-	serialNumber, err := device.SerialNumber()
+	serialNumber, err := device.SerialNumber(ctx)
 	if err != nil {
 		fmt.Printf("serial number: unsupported or failed: %v\n", err)
 	} else {
 		fmt.Printf("serial number: %s\n", serialNumber)
 	}
 
-	config, err := device.Config()
+	config, err := device.Config(ctx)
 	if err != nil {
 		fmt.Printf("configuration: unsupported or failed: %v\n", err)
 	} else if len(config.Raw) == 1 {

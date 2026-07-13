@@ -1,6 +1,7 @@
 package token2
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -18,13 +19,13 @@ type Device interface {
 // number.
 type SerialNumberDevice interface {
 	Device
-	SerialNumber() (string, error)
+	SerialNumber(context.Context) (string, error)
 }
 
 // ATRDevice is a Device capable of returning Token2 ATR information.
 type ATRDevice interface {
 	Device
-	ATRInfo() (ATRInfo, error)
+	ATRInfo(context.Context) (ATRInfo, error)
 }
 
 // ErrInvalidSerialResponse reports a malformed serial-number response received

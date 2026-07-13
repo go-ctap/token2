@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	for info, err := range ghid.Enumerate(ghid.WithVendorID(0x349e)) {
 		check(err)
 
@@ -28,7 +30,7 @@ func main() {
 			continue
 		}
 
-		serial, err := device.SerialNumber()
+		serial, err := device.SerialNumber(ctx)
 		_ = device.Close()
 		if err != nil {
 			fmt.Printf("serial: %v\n", err)

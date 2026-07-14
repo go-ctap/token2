@@ -39,3 +39,14 @@ func TestParseATRRejectsMalformedData(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrInvalidATR))
 	}
 }
+
+func TestParseATRRejectsGenericPIVATR(t *testing.T) {
+	atr := []byte{
+		0x3b, 0x8f, 0x80, 0x01, 0x54, 0x4b, 0x00, 0x50, 0x49, 0x56,
+		0x04, 0x02, 0x38, 0x38, 0x38, 0x38, 0x38, 0x38, 0x38, 0x60,
+	}
+
+	_, err := ParseATR(atr)
+
+	assert.ErrorIs(t, err, ErrInvalidATR)
+}

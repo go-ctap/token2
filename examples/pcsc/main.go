@@ -35,17 +35,18 @@ func run(ctx context.Context) (err error) {
 
 	fmt.Printf("PC/SC reader: %s\n", reader)
 
-	atr, err := device.ATRInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("read ATR: %w", err)
-	}
-	printATR(atr)
-
 	serialNumber, err := device.SerialNumber(ctx)
 	if err != nil {
 		fmt.Printf("Serial number: unsupported or failed: %v\n", err)
 	} else {
 		printIdentity(serialNumber)
+	}
+
+	atr, err := device.ATRInfo(ctx)
+	if err != nil {
+		fmt.Printf("ATR identity: unsupported or failed: %v\n", err)
+	} else {
+		printATR(atr)
 	}
 
 	config, err := device.Config(ctx)

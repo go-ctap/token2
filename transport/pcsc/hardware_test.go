@@ -1,9 +1,11 @@
 package pcsc
 
 import (
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/go-ctap/token2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +32,10 @@ func TestHardware(t *testing.T) {
 	require.NotEmpty(t, config.Raw)
 
 	atr, err := device.ATRInfo(t.Context())
-	require.NoError(t, err)
-	require.NotEmpty(t, atr.Raw)
+	if errors.Is(err, token2.ErrInvalidATR) {
+		t.Logf("ATR does not contain Token2 identity data: %v", err)
+	} else {
+		require.NoError(t, err)
+		require.NotEmpty(t, atr.Raw)
+	}
 }

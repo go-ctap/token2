@@ -3,6 +3,7 @@ package apdu
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,11 +32,15 @@ func (c *scriptedCard) Transmit(_ context.Context, command []byte) ([]byte, erro
 	return response, nil
 }
 
-func TestExchangeGetResponse(t *testing.T) {
-	card := &scriptedCard{responses: [][]byte{{0xaa, 0x61, 0x02}, {0xbb, 0xcc, 0x90, 0x00}}}
-	response, err := Exchange(t.Context(), card, Command{CLA: 0x80, INS: 0x33, Data: []byte{1, 2}})
-	require.NoError(t, err)
-	assert.Equal(t, []byte{0xaa, 0xbb, 0xcc}, response.Data)
-	assert.Equal(t, uint16(0x9000), response.SW)
-	assert.Equal(t, []byte{0x00, 0xc0, 0x00, 0x00, 0x02}, card.requests[1])
+func TestExchangeGetResponsePreservesCLA(t *testing.T) {
+	for _, cla := range []byte{0x00, 0x80} {
+		t.Run(fmt.Sprintf("CLA_%02x", cla), func(t *testing.T) {
+			card := &scriptedCard{responses: [][]byte{{0xaa, 0x61, 0x02}, {0xbb, 0xcc, 0x90, 0x00}}}
+			response, err := Exchange(t.Context(), card, Command{CLA: cla, INS: 0x33, Data: []byte{1, 2}})
+			require.NoError(t, err)
+			assert.Equal(t, []byte{0xaa, 0xbb, 0xcc}, response.Data)
+			assert.Equal(t, uint16(0x9000), response.SW)
+			assert.Equal(t, []byte{cla, 0xc0, 0x00, 0x00, 0x02}, card.requests[1])
+		})
+	}
 }

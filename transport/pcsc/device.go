@@ -62,15 +62,27 @@ func (d *Device) Config(ctx context.Context) (token2.Config, error) {
 }
 
 func (d *Device) config(ctx context.Context) (token2.Config, error) {
-	response, err := apdu.Exchange(ctx, d.card, protocol.SelectOTPCommand())
-	if err != nil {
-		return token2.Config{}, err
-	}
-	if err := response.Err("select Token2 OTP application"); err != nil {
+	if err := d.selectOTP(ctx); err != nil {
 		return token2.Config{}, err
 	}
 
-	response, err = apdu.Exchange(ctx, d.card, protocol.ConfigCommand())
+	return d.readConfig(ctx)
+}
+
+func (d *Device) selectOTP(ctx context.Context) error {
+	response, err := apdu.Exchange(ctx, d.card, protocol.SelectOTPCommand())
+	if err != nil {
+		return err
+	}
+	if err := response.Err("select Token2 OTP application"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *Device) readConfig(ctx context.Context) (token2.Config, error) {
+	response, err := apdu.Exchange(ctx, d.card, protocol.ConfigCommand())
 	if err != nil {
 		return token2.Config{}, err
 	}
@@ -81,35 +93,15 @@ func (d *Device) config(ctx context.Context) (token2.Config, error) {
 	return token2.ParseConfig(response.Data)
 }
 
-// FIDOInfo returns the raw FIDO information reported by the device.
-func (d *Device) FIDOInfo(ctx context.Context) ([]byte, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	return d.fidoInfo(ctx)
-}
-
-func (d *Device) fidoInfo(ctx context.Context) ([]byte, error) {
-	response, err := apdu.Exchange(ctx, d.card, protocol.FIDOInfoCommand())
-	if err != nil {
-		return nil, err
-	}
-	if err := response.Err("read FIDO information"); err != nil {
-		return nil, err
-	}
-
-	return response.Data, nil
-}
-
 // SerialNumber returns the full device serial number.
 func (d *Device) SerialNumber(ctx context.Context) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if _, err := d.config(ctx); err != nil {
+	if err := d.selectOTP(ctx); err != nil {
 		return "", err
 	}
-	if _, err := d.fidoInfo(ctx); err != nil {
+	if _, err := d.readConfig(ctx); err != nil {
 		return "", err
 	}
 

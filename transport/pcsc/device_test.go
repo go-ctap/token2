@@ -22,8 +22,7 @@ var (
 		0x80, 0xc5, 0x02, 0x00, 0x0a,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	fidoInfoAPDU = []byte{0x80, 0xc5, 0x03, 0x00, 0x01, 0x04}
-	serialAPDU   = []byte{
+	serialAPDU = []byte{
 		0x80, 0x33, 0x00, 0x00, 0x12,
 		0xd1, 0x10,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -141,23 +140,11 @@ func TestStatusErrors(t *testing.T) {
 			},
 		},
 		{
-			name:      "FIDO information",
-			operation: "read FIDO information",
-			steps: []cardStep{
-				{command: fidoInfoAPDU, response: statusResponse(0x6d00)},
-			},
-			call: func(d *Device) error {
-				_, err := d.FIDOInfo(t.Context())
-				return err
-			},
-		},
-		{
 			name:      "serial number",
 			operation: "read serial number",
 			steps: []cardStep{
 				{command: selectOTPAPDU, response: successfulResponse(nil)},
 				{command: configAPDU, response: successfulResponse(configData)},
-				{command: fidoInfoAPDU, response: successfulResponse([]byte{0x01})},
 				{command: serialAPDU, response: statusResponse(0x6a80)},
 			},
 			call: func(d *Device) error {
@@ -186,7 +173,6 @@ func TestSerialNumberSequence(t *testing.T) {
 	card := &scriptedCard{steps: []cardStep{
 		{command: selectOTPAPDU, response: successfulResponse(nil)},
 		{command: configAPDU, response: successfulResponse(configData)},
-		{command: fidoInfoAPDU, response: successfulResponse([]byte{0x01})},
 		{command: serialAPDU, response: successfulResponse(serialData)},
 	}}
 	device := &Device{card: card}

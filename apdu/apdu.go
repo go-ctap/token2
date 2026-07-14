@@ -116,7 +116,7 @@ func Exchange(ctx context.Context, card Transceiver, command Command) (Response,
 	for response.SW>>8 == statusMoreData || response.SW>>8 == statusMoreDataAlt {
 		le := byte(response.SW)
 
-		responseBytes, err = card.Transmit(ctx, []byte{0, instructionGetResponse, 0, 0, le})
+		responseBytes, err = card.Transmit(ctx, []byte{command.CLA, instructionGetResponse, 0, 0, le})
 		if err != nil {
 			return Response{}, err
 		}

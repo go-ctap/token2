@@ -1,0 +1,112 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	githubpcsc "github.com/go-ctap/pcsc"
+	"github.com/go-ctap/token2"
+	token2pcsc "github.com/go-ctap/token2/transport/pcsc"
+)
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context) (err error) {
+	reader, err := findReader(os.Getenv("PCSC_READER"))
+	if err != nil {
+		return err
+	}
+
+	device, err := token2pcsc.Open(reader)
+	if err != nil {
+		return fmt.Errorf("open PC/SC reader %q: %w", reader, err)
+	}
+	defer func() {
+		err = errors.Join(err, device.Close())
+	}()
+
+	fmt.Printf("PC/SC reader: %s\n", reader)
+
+	atr, err := device.ATRInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("read ATR: %w", err)
+	}
+	printATR(atr)
+
+	serialNumber, err := device.SerialNumber(ctx)
+	if err != nil {
+		fmt.Printf("Serial number: unsupported or failed: %v\n", err)
+	} else {
+		printIdentity(serialNumber)
+	}
+
+	config, err := device.Config(ctx)
+	if err != nil {
+		fmt.Printf("Configuration: unsupported or failed: %v\n", err)
+	} else {
+		printConfig(config)
+	}
+
+	return nil
+}
+
+func findReader(filter string) (string, error) {
+	for reader, err := range githubpcsc.Enumerate() {
+		if err != nil {
+			return "", fmt.Errorf("enumerate PC/SC readers: %w", err)
+		}
+		if filter == "" || strings.Contains(reader.Name, filter) {
+			return reader.Name, nil
+		}
+	}
+
+	if filter == "" {
+		return "", errors.New("no PC/SC readers found")
+	}
+	return "", fmt.Errorf("no PC/SC reader matching %q", filter)
+}
+
+func printATR(info token2.ATRInfo) {
+	fmt.Printf("ATR: %x\n", info.Raw)
+	fmt.Printf("Product ID: %04x\n", info.ProductID)
+	fmt.Printf("Serial suffix: %s\n", info.SerialSuffix)
+}
+
+func printIdentity(serialNumber string) {
+	fmt.Printf("Serial number: %s\n", serialNumber)
+	if identity, ok := token2.Identify(serialNumber); ok {
+		fmt.Printf("Model: %s\n", identity.Model.DisplayName())
+	}
+}
+
+func printConfig(config token2.Config) {
+	if len(config.Raw) == 1 {
+		fmt.Printf("Configuration: legacy transfer type=%02x\n", config.TransferType)
+		return
+	}
+
+	fmt.Printf("Appearance: %x\n", config.Appearance)
+	fmt.Printf(
+		"FIDO version: %d.%d.%d\n",
+		config.FIDOVersion.Major,
+		config.FIDOVersion.Minor,
+		config.FIDOVersion.Patch,
+	)
+	fmt.Printf(
+		"Capabilities: hotp=%t totp=%t nfc=%t ccid=%t fingerprint=%t fido2.1=%t\n",
+		config.HOTPSupported(),
+		config.TOTPSupported(),
+		config.NFCSupported(),
+		config.CCIDSupported(),
+		config.FingerprintSensorPresent(),
+		config.FIDO21Supported(),
+	)
+}

@@ -19,19 +19,15 @@ func TestHardware(t *testing.T) {
 		require.NoError(t, device.Close())
 	})
 
-	// FIDOInfo is intentionally first: each public operation must work on a
-	// freshly opened connection rather than depend on an earlier call.
-	fidoInfo, err := device.FIDOInfo(t.Context())
+	// SerialNumber is intentionally first: it must perform its internal
+	// configuration query on a fresh connection.
+	serialNumber, err := device.SerialNumber(t.Context())
 	require.NoError(t, err)
-	require.NotEmpty(t, fidoInfo)
+	require.NotEmpty(t, serialNumber)
 
 	config, err := device.Config(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, config.Raw)
-
-	serialNumber, err := device.SerialNumber(t.Context())
-	require.NoError(t, err)
-	require.NotEmpty(t, serialNumber)
 
 	atr, err := device.ATRInfo(t.Context())
 	require.NoError(t, err)

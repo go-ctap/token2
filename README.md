@@ -26,12 +26,10 @@ Pure-Go Token2 device support over PC/SC, USB HID feature reports and CTAPHID.
 | Model identification from the serial number | Yes | Yes | No |
 | ATR, product ID and serial suffix | Yes | No | Yes |
 | Token2 configuration | Yes | No | No |
-| Raw FIDO information query | Yes | No | No |
 
-The PC/SC serial-number query performs the device-specific configuration and
-FIDO information prelude required by supported Token2 devices. Some proprietary
-queries are not available on every Token2 generation; `ATRInfo` remains the
-portable PC/SC identity source.
+The PC/SC serial-number query performs the device-specific configuration query
+required by supported Token2 devices. Some proprietary queries are not available
+on every Token2 generation; `ATRInfo` remains the portable PC/SC identity source.
 
 ## PC/SC
 
@@ -92,12 +90,6 @@ if len(config.Raw) == 1 {
 		config.FIDO21Supported(),
 	)
 }
-
-fidoInfo, err := device.FIDOInfo()
-if err != nil {
-	log.Fatal(err)
-}
-log.Printf("raw FIDO information=%x", fidoInfo)
 ```
 
 ## HID
@@ -162,6 +154,28 @@ All concrete device types serialize complete logical operations. Malformed data
 received from a card or HID device is returned as an error. Callers are expected
 to pass valid reader names, HID paths, serial-number strings and APDU commands;
 the package does not add defensive checks for programmer misuse.
+
+## Examples
+
+Each example is an independent Go module, keeping transport-specific
+dependencies out of the root module.
+
+| Example | Purpose | Optional configuration |
+| --- | --- | --- |
+| [`examples/pcsc`](examples/pcsc) | Read identity and configuration over PC/SC | `PCSC_READER` (reader-name substring) |
+| [`examples/hid`](examples/hid) | Read the full serial number over HID feature reports | `TOKEN2_HID_PATH` |
+| [`examples/ctaphid`](examples/ctaphid) | Read ATR identity over the CTAPHID vendor command | `TOKEN2_CTAPHID_PATH` |
+
+Run an example from its directory:
+
+```sh
+cd examples/pcsc
+go run .
+```
+
+Without an environment variable, an example selects the first matching device
+or reader it finds. Set the corresponding variable when multiple Token2 devices
+are connected or when automatic HID selection is not available on the host.
 
 ## Hardware tests
 

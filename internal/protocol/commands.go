@@ -12,8 +12,6 @@ const (
 	instructionDeviceInfo    = 0x33
 
 	configurationRead = 0x02
-	configurationFIDO = 0x03
-	fidoGetInfo       = 0x04
 
 	// SerialResponseTag identifies the serial-number TLV returned by the device.
 	SerialResponseTag = 0xd1
@@ -39,16 +37,6 @@ func ConfigCommand() apdu.Command {
 		INS:  instructionConfiguration,
 		P1:   configurationRead,
 		Data: make([]byte, 10),
-	}
-}
-
-// FIDOInfoCommand reads the raw Token2 FIDO information.
-func FIDOInfoCommand() apdu.Command {
-	return apdu.Command{
-		CLA:  classToken2,
-		INS:  instructionConfiguration,
-		P1:   configurationFIDO,
-		Data: []byte{fidoGetInfo},
 	}
 }
 

@@ -3,7 +3,7 @@ module github.com/go-ctap/token2
 go 1.26.3
 
 require (
-	github.com/go-ctap/ctap v0.20.0
+	github.com/go-ctap/ctap v0.20.1
 	github.com/go-ctap/hid v0.9.1
 	github.com/go-ctap/pcsc v0.3.0
 	github.com/stretchr/testify v1.11.1

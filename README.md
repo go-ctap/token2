@@ -28,8 +28,10 @@ Pure-Go Token2 device support over PC/SC, USB HID feature reports and CTAPHID.
 | Token2 configuration | Yes | No | No |
 
 The PC/SC serial-number query performs the device-specific configuration query
-required by supported Token2 devices. Some proprietary queries are not available
-on every Token2 generation; `ATRInfo` remains the portable PC/SC identity source.
+required by supported Token2 devices. On firmware such as R3.1 it also retries
+the serial-number command after an internal compatibility prelude. Some
+proprietary queries are not available on every Token2 generation; `ATRInfo`
+remains the portable PC/SC identity source.
 
 ## PC/SC
 

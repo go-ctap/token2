@@ -12,6 +12,8 @@ const (
 	instructionDeviceInfo    = 0x33
 
 	configurationRead = 0x02
+	configurationCTAP = 0x03
+	ctapGetInfo       = 0x04
 
 	// SerialResponseTag identifies the serial-number TLV returned by the device.
 	SerialResponseTag = 0xd1
@@ -37,6 +39,17 @@ func ConfigCommand() apdu.Command {
 		INS:  instructionConfiguration,
 		P1:   configurationRead,
 		Data: make([]byte, 10),
+	}
+}
+
+// LegacySerialNumberPreludeCommand primes the device-information command on
+// firmware revisions such as R3.1 which initially reject it with 6D00.
+func LegacySerialNumberPreludeCommand() apdu.Command {
+	return apdu.Command{
+		CLA:  classToken2,
+		INS:  instructionConfiguration,
+		P1:   configurationCTAP,
+		Data: []byte{ctapGetInfo},
 	}
 }
 

@@ -11,6 +11,8 @@ import (
 	"github.com/go-ctap/token2/internal/protocol"
 )
 
+const statusInstructionNotSupported = 0x6d00
+
 var (
 	_ token2.SerialNumberDevice = (*Device)(nil)
 	_ token2.ATRDevice          = (*Device)(nil)
@@ -93,6 +95,19 @@ func (d *Device) readConfig(ctx context.Context) (token2.Config, error) {
 	return token2.ParseConfig(response.Data)
 }
 
+func (d *Device) prepareLegacySerialNumber(ctx context.Context) error {
+	response, err := apdu.Exchange(ctx, d.card, protocol.LegacySerialNumberPreludeCommand())
+	if err != nil {
+		return err
+	}
+
+	return response.Err("prepare legacy serial-number command")
+}
+
+func (d *Device) readSerialNumber(ctx context.Context) (apdu.Response, error) {
+	return apdu.Exchange(ctx, d.card, protocol.SerialNumberCommand(false))
+}
+
 // SerialNumber returns the full device serial number.
 func (d *Device) SerialNumber(ctx context.Context) (string, error) {
 	d.mu.Lock()
@@ -105,9 +120,19 @@ func (d *Device) SerialNumber(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	response, err := apdu.Exchange(ctx, d.card, protocol.SerialNumberCommand(false))
+	response, err := d.readSerialNumber(ctx)
 	if err != nil {
 		return "", err
+	}
+	if response.SW == statusInstructionNotSupported {
+		if err := d.prepareLegacySerialNumber(ctx); err != nil {
+			return "", err
+		}
+
+		response, err = d.readSerialNumber(ctx)
+		if err != nil {
+			return "", err
+		}
 	}
 	if err := response.Err("read serial number"); err != nil {
 		return "", err

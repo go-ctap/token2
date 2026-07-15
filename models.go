@@ -21,7 +21,7 @@ type Model struct {
 // DisplayName returns the canonical human-readable name of the model.
 func (m Model) DisplayName() string {
 	parts := make([]string, 0, 3)
-	for _, part := range []string{m.Branding, m.FormFactor, m.Revision} {
+	for _, part := range []string{m.Branding, m.FormFactor} {
 		if part = strings.TrimSpace(part); part != "" {
 			parts = append(parts, part)
 		}

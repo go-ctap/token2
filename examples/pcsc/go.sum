@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/ebitengine/purego v0.10.1 h1:dewVBCBT2GaMu1SrNTYxQhgQBethzfhiwvZiLGP/qyY=
 github.com/ebitengine/purego v0.10.1/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
-github.com/go-ctap/pcsc v0.3.0 h1:A+9aAHTT9NJMgHlCSe6BlyCl3120MQGu/ev3rNF6TDM=
-github.com/go-ctap/pcsc v0.3.0/go.mod h1:Z1nd+GZfexftHREzBaQuMIO2iltFSLk3c2+KbLco2Gw=
+github.com/go-ctap/pcsc v0.4.0 h1:nyLeWsFgaN1/Ob6fs9R5aOVBPb7p+/g0RsVMqib9DqU=
+github.com/go-ctap/pcsc v0.4.0/go.mod h1:Z1nd+GZfexftHREzBaQuMIO2iltFSLk3c2+KbLco2Gw=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=

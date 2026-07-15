@@ -3,7 +3,7 @@ module github.com/go-ctap/token2/examples/pcsc
 go 1.26.3
 
 require (
-	github.com/go-ctap/pcsc v0.3.0
+	github.com/go-ctap/pcsc v0.4.0
 	github.com/go-ctap/token2 v0.0.0
 )
 

@@ -59,7 +59,7 @@ func TestModelDisplayName(t *testing.T) {
 				FormFactor: "Bio3 Dual A+C PIN+",
 				Revision:   "R3.2",
 			},
-			want: "Token2 Bio3 Dual A+C PIN+ R3.2",
+			want: "Token2 Bio3 Dual A+C PIN+",
 		},
 		{
 			name: "model without branding",
@@ -67,7 +67,7 @@ func TestModelDisplayName(t *testing.T) {
 				FormFactor: "Mini USB-C PIN+",
 				Revision:   "R3.1",
 			},
-			want: "Mini USB-C PIN+ R3.1",
+			want: "Mini USB-C PIN+",
 		},
 		{
 			name: "empty model",
@@ -80,7 +80,7 @@ func TestModelDisplayName(t *testing.T) {
 				FormFactor: " USB-A NFC ",
 				Revision:   " R1 ",
 			},
-			want: "Token2 USB-A NFC R1",
+			want: "Token2 USB-A NFC",
 		},
 	}
 

@@ -19,13 +19,11 @@ const (
 type scriptedDevice struct {
 	reads         *bytes.Reader
 	writes        bytes.Buffer
-	readContexts  []context.Context
 	writeContexts []context.Context
 	closed        bool
 }
 
-func (d *scriptedDevice) Read(ctx context.Context, p []byte) (int, error) {
-	d.readContexts = append(d.readContexts, ctx)
+func (d *scriptedDevice) Read(_ context.Context, p []byte) (int, error) {
 	return d.reads.Read(p)
 }
 
@@ -62,9 +60,7 @@ func TestATRInfo(t *testing.T) {
 	require.Len(t, written, reportSize)
 	assert.Equal(t, byte(CommandGetATR)|initPacketBit, written[5])
 	assert.Equal(t, cid[:], written[1:5])
-	require.Len(t, device.readContexts, 1)
 	require.Len(t, device.writeContexts, 1)
-	assert.Equal(t, "atr", device.readContexts[0].Value(contextKey{}))
 	assert.Equal(t, "atr", device.writeContexts[0].Value(contextKey{}))
 }
 

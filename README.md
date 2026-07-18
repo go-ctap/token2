@@ -1,4 +1,4 @@
-# go-token2
+# go-ctap/token2
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/go-ctap/token2.svg)](https://pkg.go.dev/github.com/go-ctap/token2)
 [![Go](https://github.com/go-ctap/token2/actions/workflows/go.yml/badge.svg)](https://github.com/go-ctap/token2/actions/workflows/go.yml)

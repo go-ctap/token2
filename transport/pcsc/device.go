@@ -18,10 +18,16 @@ var (
 	_ token2.ATRDevice          = (*Device)(nil)
 )
 
+type card interface {
+	apdu.Transceiver
+	Status() (*nativepcsc.CardStatus, error)
+	Close() error
+}
+
 // Device is a Token2 device connected through a PC/SC reader.
 type Device struct {
 	mu   sync.Mutex
-	card nativepcsc.Card
+	card card
 }
 
 // Open connects to the Token2 device in reader.

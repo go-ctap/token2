@@ -3,15 +3,15 @@ module github.com/go-ctap/token2
 go 1.26.3
 
 require (
-	github.com/go-ctap/ctap v0.32.0
-	github.com/go-ctap/hid v0.10.0
-	github.com/go-ctap/pcsc v0.4.1
+	github.com/go-ctap/ctap v0.33.2
+	github.com/go-ctap/hid v0.10.1
+	github.com/go-ctap/pcsc v0.5.0
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/ebitengine/purego v0.10.1 // indirect
+	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
